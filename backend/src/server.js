@@ -1,90 +1,93 @@
 // server.js
-import http from "node:http"; // Use standard node: prefix
-
+import http from "node:http";
 import { app } from "#app";
-import { env } from "#config";
 
-const httpServer = http.createServer(app);
+/**
+ * Modular Bootstrap Function
+ * Keeps all wiring logic encapsulated, but expects configuration dependencies passed as arguments.
+ * * @param {Object} config
+ * @param {number} config.port - The network port to bind to
+ * @param {string} config.appName - Name of the application for logs
+ * @param {string} config.appUrl - URL of the application for logs
+ */
+export const startServer = async ({ port, appName, appUrl }) => {
+  const httpServer = http.createServer(app);
+  let isShuttingDown = false;
 
-httpServer.on("listening", () => {
-  console.log({ service: "auth" }, "NODE_LOKI_TEST");
-  console.log(`${env.APP_NAME} server running at ${env.APP_URL}`);
-});
-
-httpServer.on("error", (error) => {
-  if (error.syscall !== "listen") {
-    console.log({ err: error }, "Server runtime error encountered");
-    process.exit(1);
-  }
-
-  switch (error.code) {
-    case "EADDRINUSE":
-      console.log({ port: env.PORT }, `Port ${env.PORT} is already in use`);
-      break;
-    case "EACCES":
-      console.log(
-        { port: env.PORT },
-        `Port ${env.PORT} requires elevated privileges`,
-      );
-      break;
-    default:
-      console.log({ err: error }, "Failed to start server due to system error");
-  }
-  process.exit(1);
-});
-
-let isShuttingDown = false;
-
-function shutdown(signalOrError) {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-
-  console.log(
-    `Received ${signalOrError || "shutdown signal"}. Closing active connections...`,
-  );
-
-  const forceQuitTimeout = setTimeout(() => {
-    console.log(
-      "Forced shutdown initiated: Active connections did not close in time.",
-    );
-    process.exit(1);
-  }, 10000);
-
-  httpServer.close((err) => {
-    clearTimeout(forceQuitTimeout);
-    if (err) {
-      console.log({ err }, "Error occurred while closing HTTP server");
-      process.exit(1);
-    }
-    logger.info("HTTP server closed cleanly. Process exiting.");
-    process.exit(0);
+  httpServer.on("listening", () => {
+    console.log({ service: "auth" }, "NODE_LOKI_TEST");
+    console.log(`🚀 ${appName} server running at ${appUrl}:${port}`);
   });
-}
 
-// --- 3. Process Safety Guardrails ---
+  httpServer.on("error", (error) => {
+    if (error.syscall !== "listen") {
+      console.error({ err: error }, "Server socket runtime error encountered");
+      return;
+    }
 
-process.on("uncaughtException", (error) => {
-  console.log({ err: error }, `Uncaught Exception caught: ${error.message}`);
-  shutdown("uncaughtException");
-});
+    switch (error.code) {
+      case "EADDRINUSE":
+        console.error({ port }, `Port ${port} is already in use`);
+        break;
+      case "EACCES":
+        console.error({ port }, `Port ${port} requires elevated privileges`);
+        break;
+      default:
+        console.error(
+          { err: error },
+          "Failed to start server due to system network error",
+        );
+    }
+    process.exit(1);
+  });
 
-process.on("unhandledRejection", (reason) => {
-  console.log({ err: reason }, `Unhandled Promise Rejection caught`);
-  shutdown("unhandledRejection");
-});
+  const shutdown = (signalOrError) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+    console.warn(`\nReceived ${signalOrError}. Closing active connections...`);
 
-const startServer = async () => {
+    const forceQuitTimeout = setTimeout(() => {
+      console.error(
+        "Forced shutdown initiated: Active connections did not close in time.",
+      );
+      process.exit(1);
+    }, 10000);
+
+    httpServer.close((err) => {
+      clearTimeout(forceQuitTimeout);
+      if (err) {
+        console.error({ err }, "Error occurred while closing HTTP server");
+        process.exit(1);
+      }
+      console.log("HTTP server closed cleanly. Process exiting.");
+      process.exit(0);
+    });
+  };
+
+  process.on("uncaughtException", (error) => {
+    console.error(
+      { err: error },
+      `Uncaught Exception caught: ${error.message}`,
+    );
+    shutdown("uncaughtException");
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    console.error({ err: reason }, `Unhandled Promise Rejection caught`);
+    shutdown("unhandledRejection");
+  });
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+
   try {
-    // await config.connectMongoDB(env.TEST_DB_URL);
+    // If you add database connections later, you can pass its URI inside the options argument!
+    // await connectMongoDB(databaseUrl);
 
-    httpServer.listen(env.PORT, env.APP_URL);
+    httpServer.listen(port, "0.0.0.0");
   } catch (error) {
-    console.log({ err: error }, "Failed to initialize server requirements");
+    console.error({ err: error }, "Failed to initialize server requirements");
     process.exit(1);
   }
 };
-
-startServer();
