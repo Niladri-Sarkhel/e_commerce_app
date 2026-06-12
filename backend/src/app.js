@@ -8,7 +8,7 @@ app
   .use(express.json())
   .use(express.urlencoded({ extended: true }))
   .use("/test", testRouter)
-  .use((req, res) => {
+  .use((_, res) => {
     return res.status(404).json({ message: "page not found :(" });
   });
 // .use(handleReqErrors);
