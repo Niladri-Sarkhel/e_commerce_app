@@ -1,39 +1,37 @@
 // server.js
 import http from "node:http";
 import { app } from "#app";
+import { logger } from "#utils";
 
-/**
- * Modular Bootstrap Function
- * Keeps all wiring logic encapsulated, but expects configuration dependencies passed as arguments.
- * * @param {Object} config
- * @param {number} config.port - The network port to bind to
- * @param {string} config.appName - Name of the application for logs
- * @param {string} config.appUrl - URL of the application for logs
- */
 export const startServer = async ({ port, appName, appUrl }) => {
   const httpServer = http.createServer(app);
   let isShuttingDown = false;
 
   httpServer.on("listening", () => {
-    console.log({ service: "auth" }, "NODE_LOKI_TEST");
-    console.log(`🚀 ${appName} server running at ${appUrl}:${port}`);
+    logger.info({ service: "auth" }, "NODE_LOKI_TEST");
+    logger.info(
+      { appName, appUrl },
+      "🚀 %s server running at %s",
+      appName,
+      appUrl,
+    );
   });
 
   httpServer.on("error", (error) => {
     if (error.syscall !== "listen") {
-      console.error({ err: error }, "Server socket runtime error encountered");
+      logger.error({ err: error }, "Server socket runtime error encountered");
       return;
     }
 
     switch (error.code) {
       case "EADDRINUSE":
-        console.error({ port }, `Port ${port} is already in use`);
+        logger.error({ port }, `Port ${port} is already in use`);
         break;
       case "EACCES":
-        console.error({ port }, `Port ${port} requires elevated privileges`);
+        logger.error({ port }, `Port ${port} requires elevated privileges`);
         break;
       default:
-        console.error(
+        logger.error(
           { err: error },
           "Failed to start server due to system network error",
         );
@@ -45,10 +43,10 @@ export const startServer = async ({ port, appName, appUrl }) => {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.warn(`\nReceived ${signalOrError}. Closing active connections...`);
+    logger.warn(`\nReceived ${signalOrError}. Closing active connections...`);
 
     const forceQuitTimeout = setTimeout(() => {
-      console.error(
+      logger.error(
         "Forced shutdown initiated: Active connections did not close in time.",
       );
       process.exit(1);
@@ -57,24 +55,21 @@ export const startServer = async ({ port, appName, appUrl }) => {
     httpServer.close((err) => {
       clearTimeout(forceQuitTimeout);
       if (err) {
-        console.error({ err }, "Error occurred while closing HTTP server");
+        logger.error({ err }, "Error occurred while closing HTTP server");
         process.exit(1);
       }
-      console.log("HTTP server closed cleanly. Process exiting.");
+      logger.info("HTTP server closed cleanly. Process exiting.");
       process.exit(0);
     });
   };
 
   process.on("uncaughtException", (error) => {
-    console.error(
-      { err: error },
-      `Uncaught Exception caught: ${error.message}`,
-    );
+    logger.error({ err: error }, `Uncaught Exception caught: ${error.message}`);
     shutdown("uncaughtException");
   });
 
   process.on("unhandledRejection", (reason) => {
-    console.error({ err: reason }, `Unhandled Promise Rejection caught`);
+    logger.error({ err: reason }, `Unhandled Promise Rejection caught`);
     shutdown("unhandledRejection");
   });
 
@@ -87,7 +82,7 @@ export const startServer = async ({ port, appName, appUrl }) => {
 
     httpServer.listen(port, "0.0.0.0");
   } catch (error) {
-    console.error({ err: error }, "Failed to initialize server requirements");
+    logger.error({ err: error }, "Failed to initialize server requirements");
     process.exit(1);
   }
 };

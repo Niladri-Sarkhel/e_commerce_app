@@ -17,7 +17,6 @@ const envSchema = joi.object({
     .required(),
 });
 
-console.log(process.env);
 const { value, error } = envSchema.validate(process.env, {
   abortEarly: false,
   stripUnknown: true,
