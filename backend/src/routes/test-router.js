@@ -1,7 +1,13 @@
 import express from "express";
 
+import { logger } from "#utils";
+
 const testController = {
   ping: (req, res) => {
+    logger.info(
+      { controller: "testController", func: "ping" },
+      "this is a controller to test the server connection",
+    );
     res.status(200).json({
       status: "success",
       message: "🏓 pong!",
@@ -10,6 +16,10 @@ const testController = {
   },
 
   echo: (req, res) => {
+    logger.info(
+      { controller: "testController", func: "echo" },
+      "this is a controller to test the server connection",
+    );
     res.status(200).json({
       status: "success",
       message: "Data received successfully",
@@ -22,6 +32,10 @@ const testController = {
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
+      logger.info(
+        { controller: "testController", func: "asyncTest" },
+        "this is a controller to test the server connection",
+      );
       res.status(200).json({
         status: "success",
         message: "Async event loop and connections are working fine.",

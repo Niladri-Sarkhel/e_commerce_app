@@ -8,7 +8,7 @@ export const startServer = async ({ port, appName, appUrl }) => {
   let isShuttingDown = false;
 
   httpServer.on("listening", () => {
-    logger.info({ service: "auth" }, "NODE_LOKI_TEST");
+    // logger.info({ service: "auth" }, "NODE_LOKI_TEST");
     logger.info(
       { appName, appUrl },
       "🚀 %s server running at %s",
