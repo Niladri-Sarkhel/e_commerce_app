@@ -1,13 +1,30 @@
 services:
-  api_server:
+  node_api_server:
     image: node:26-alpine
-    container_name: api_server
+    container_name: e_commerce_server
     user: "${UID:-1000}:${GID:-1000}"
-    ports:
-      - "3000:3000"
+    working_dir: /app
     volumes:
       - ./:/app
-    working_dir: /app
     env_file:
-      - .env 
-    # command: npm run dev 
+      - .env
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+    command: sh -c "tail -f /dev/null"
+
+  mongodb:
+    image: mongo:latest
+    container_name: e_commerce_db
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: blue
+      MONGO_INITDB_ROOT_PASSWORD: adminfjsl90vvv
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:

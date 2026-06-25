@@ -1,5 +1,14 @@
 import joi from "joi";
 
+console.log({
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: process.env.PORT,
+  APP_NAME: process.env.APP_NAME,
+  APP_URL: process.env.APP_URL,
+  DATABASE_URL: process.env.DATABASE_URL,
+  LOG_LEVEL: process.env.LOG_LEVEL,
+});
+
 const envSchema = joi.object({
   NODE_ENV: joi.string().valid("development", "test", "production").required(),
 
