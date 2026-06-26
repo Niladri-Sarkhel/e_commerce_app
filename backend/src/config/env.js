@@ -1,9 +1,9 @@
 import joi from "joi";
 
 console.log({
+  APP_NAME: process.env.APP_NAME,
   NODE_ENV: process.env.NODE_ENV,
   PORT: process.env.PORT,
-  APP_NAME: process.env.APP_NAME,
   APP_URL: process.env.APP_URL,
   MONGODB_URL: process.env.MONGODB_URL,
   LOG_LEVEL: process.env.LOG_LEVEL,
