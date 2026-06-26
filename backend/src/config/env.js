@@ -5,7 +5,7 @@ console.log({
   PORT: process.env.PORT,
   APP_NAME: process.env.APP_NAME,
   APP_URL: process.env.APP_URL,
-  DATABASE_URL: process.env.DATABASE_URL,
+  MONGODB_URL: process.env.MONGODB_URL,
   LOG_LEVEL: process.env.LOG_LEVEL,
 });
 
@@ -18,7 +18,7 @@ const envSchema = joi.object({
 
   APP_URL: joi.string().uri().required(),
 
-  DATABASE_URL: joi.string().uri().required(),
+  MONGODB_URL: joi.string().uri().required(),
 
   LOG_LEVEL: joi
     .string()
@@ -43,3 +43,4 @@ if (error) {
 }
 
 export const env = Object.freeze(value);
+console.log(env);

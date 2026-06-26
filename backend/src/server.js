@@ -2,8 +2,9 @@
 import http from "node:http";
 import { app } from "#app";
 import { logger } from "#utils";
+import { connectMongoDB } from "#config";
 
-export const startServer = async ({ port, appName, appUrl }) => {
+export const startServer = async ({ port, appName, appUrl, databaseUrl }) => {
   const httpServer = http.createServer(app);
   let isShuttingDown = false;
 
@@ -77,8 +78,7 @@ export const startServer = async ({ port, appName, appUrl }) => {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
   try {
-    // If you add database connections later, you can pass its URI inside the options argument!
-    // await connectMongoDB(databaseUrl);
+    await connectMongoDB(databaseUrl);
 
     httpServer.listen(port, "0.0.0.0");
   } catch (error) {
