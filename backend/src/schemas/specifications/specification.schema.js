@@ -10,7 +10,7 @@ import {
   connectivitySchema,
   batterySchema,
   sensorSchema,
-} from "../specifications/index.js";
+} from "./index.js";
 
 export const specificationsSchema = new mongoose.Schema(
   {

@@ -3,10 +3,11 @@ import mongoose from "mongoose";
 import {
   identitySchema,
   catalogSchema,
-  specificationsSchema,
   mediaSchema,
   metadataSchema,
 } from "./index.js";
+
+import { specificationsSchema } from "../specifications/specification.schema.js";
 
 export const productSchema = new mongoose.Schema(
   {
