@@ -4,9 +4,9 @@ import mongoose from "mongoose";
 
 export const memorySchema = new mongoose.Schema(
   {
-    ramGb: Number,
+    ramMb: Number,
 
-    storageOptionsGb: {
+    storageOptionsMb: {
       type: [Number],
       default: [],
     },
@@ -19,7 +19,7 @@ export const memorySchema = new mongoose.Schema(
 
       type: String,
 
-      maxGb: Number,
+      maxMb: Number,
 
       dedicatedSlot: {
         type: Boolean,
