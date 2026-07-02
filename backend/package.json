@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon ./index.js",
     "start": "node ./index.js",
-    "data:transform": "node ./scripts/seed/data/generate_ean.js"
+    "data:transform": "node ./scripts/seed/data/normalize_phone_data.js",
+    "db:seed": "node ./scripts/seed/seed.js"
   },
   "repository": {
     "type": "git",

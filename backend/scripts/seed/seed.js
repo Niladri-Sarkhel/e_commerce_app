@@ -1,77 +1,150 @@
 import fs from "fs";
 import path from "path";
 import mongoose from "mongoose";
-import { transformProduct } from "./transformers/product.transformer.js";
 
-// Import actual structural Mongoose models from your source configuration layout
-import { Brand } from "../../src/models/Brand.js";
-import { Category } from "../../src/models/Category.js";
-import { Product } from "../../src/models/Product.js";
-import { connectDB } from "../../src/config/mongodb.js"; // Ensure correct path to your connection string file
+import "../../src/config/env.js";
+
+// Connect to your actual project configuration layouts
+import { connectMongoDB, env } from "#config";
+import { Brand, Category, Product } from "#models";
 
 const seedDatabase = async () => {
   try {
-    await connectDB();
-    console.log("📦 Database connected successfully...");
+    // 1. Establish database connection
+    await connectMongoDB(env.MONGODB_URL);
+    console.log(env.MONGODB_URL);
+    console.log("🔌 Connected to MongoDB instance safely...");
 
-    // Wipe old execution data sets cleanly
+    // 2. Clear old catalog data to prevent indexing conflicts
+    console.log("🧹 Clearing existing collection data for clean seed...");
     await Product.deleteMany({});
     await Brand.deleteMany({});
     await Category.deleteMany({});
-    console.log("🧹 Collection space wiped clean.");
 
-    // Load data payload from target directory safely
-    const rawDataPath = path.resolve("./data/phone_data.json");
-    const rawData = JSON.parse(fs.readFileSync(rawDataPath, "utf-8"));
-    console.log(`📖 Loaded ${rawData.length} records into parser buffer.`);
-
-    // 1. Gather distinctive Brands and create references
-    const uniqueBrands = [
-      ...new Set(rawData.map((item) => item.brand).filter(Boolean)),
-    ];
-    const brandDocs = await Brand.insertMany(
-      uniqueBrands.map((name) => ({ name })),
+    // 3. Read your fully pre-validated normalized JSON file
+    const targetFilePath = path.resolve(
+      "./scripts/seed/data/normalized_phone_data.json",
     );
-    const brandMap = brandDocs.reduce(
-      (acc, curr) => ({ ...acc, [curr.name]: curr._id }),
-      {},
+    if (!fs.existsSync(targetFilePath)) {
+      throw new Error(
+        `Normalized data file not found at: ${targetFilePath}. Run data:transform first.`,
+      );
+    }
+
+    const preValidatedProducts = JSON.parse(
+      fs.readFileSync(targetFilePath, "utf-8"),
     );
     console.log(
-      `✅ Dynamically seeded ${brandDocs.length} brand relationships.`,
+      `📖 Loaded ${preValidatedProducts.length} items from normalized cache store.`,
     );
 
-    // 2. Mock or create baseline Categories
-    const categoriesList = [{ name: "Smartphones", slug: "smartphones" }];
-    const categoryDocs = await Category.insertMany(categoriesList);
-    const categoryMap = categoryDocs.reduce(
-      (acc, curr) => ({ ...acc, [curr.name]: curr._id }),
-      {},
+    // 4. Seed unique Brands dynamically from the dataset
+    console.log("🏭 Extracting unique brands for document reference...");
+    const uniqueBrandNames = [
+      ...new Set(
+        preValidatedProducts.map((p) =>
+          p.identity.model ? p.identity.slug.split("-")[0] : null,
+        ),
+      ),
+    ].filter(Boolean);
+
+    // We match the capitalization by checking original titles or mapping cleanly
+    const brandMapRaw = [
+      ...new Set(
+        preValidatedProducts.map((p) => p.media.images[0]?.alt.split(" ")[0]),
+      ),
+    ].filter(Boolean);
+
+    console.log(`✨ Seeding ${brandMapRaw.length} unique Brand collections...`);
+    const insertedBrands = await Brand.insertMany(
+      brandMapRaw.map((name) => ({ name, slug: name.toLowerCase() })),
     );
 
-    // 3. Transform and seed products safely bulk style
-    const parsedProducts = [];
-    for (const rawItem of rawData) {
+    // Create a lookup table linking the lowercase mock brand IDs to the real MongoDB ObjectIds
+    const dbBrandMap = insertedBrands.reduce((acc, brand) => {
+      acc[`mock_brand_id_${brand.slug.replace(/[^a-z0-9]/g, "")}`] = brand._id;
+      return acc;
+    }, {});
+
+    // 5. Seed Category document collection
+    console.log("📂 Seeding category trees...");
+    const defaultCategory = await Category.create({
+      name: "Smartphones",
+      slug: "smartphones",
+      description: "Mobile cellular devices and smartphones",
+    });
+
+    const mockCategoryKey = "mock_category_id_smartphones";
+    const realCategoryId = defaultCategory._id;
+
+    // 6. Map placeholders to true ObjectIds in a batch update arrays sweep
+    console.log(
+      "🔄 Resolving placeholder strings to true MongoDB ObjectIds...",
+    );
+    const finalProductPayloads = preValidatedProducts.map((product) => {
+      const mockBrandKey = product.identity.brandId;
+
+      return {
+        ...product,
+        identity: {
+          ...product.identity,
+          // Replace mock string reference with genuine MongoDB ObjectId
+          brandId: dbBrandMap[mockBrandKey] || null,
+        },
+        catalog: {
+          ...product.catalog,
+          // Replace mock category string reference with genuine MongoDB ObjectId
+          categoryId: realCategoryId,
+        },
+      };
+    });
+
+    // 7. Bulk insert using an optimized batch structure
+    const batchSize = 1000;
+    console.log(
+      `🚀 Ingesting ${finalProductPayloads.length} products to database in chunks of ${batchSize}...`,
+    );
+
+    // for (let i = 0; i < finalProductPayloads.length; i += batchSize) {
+    //   const chunk = finalProductPayloads.slice(i, i + batchSize);
+    //   await Product.insertMany(chunk, { ordered: false });
+    //   // await Product.insertMany(chunk, { ordered: true });
+    //   console.log(
+    //     `   📦 Committed chunk ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, finalProductPayloads.length)}/${finalProductPayloads.length})`,
+    //   );
+    // }
+
+    for (let i = 0; i < finalProductPayloads.length; i += batchSize) {
+      const chunk = finalProductPayloads.slice(i, i + batchSize);
       try {
-        const transformed = transformProduct(rawItem, brandMap, categoryMap);
-        parsedProducts.push(transformed);
-      } catch (err) {
-        console.error(
-          `❌ Data transform error skipped for item: ${rawItem.model}. Reason:`,
-          err.message,
-        );
+        await Product.insertMany(chunk, { ordered: false });
+        console.log(`    📦 Committed chunk ${Math.floor(i / batchSize) + 1}`);
+      } catch (bulkError) {
+        // If some documents fail, insertMany throws an error containing an array of writeErrors
+        if (bulkError.writeErrors && bulkError.writeErrors.length > 0) {
+          console.warn(
+            `    ⚠️ Chunk ${Math.floor(i / batchSize) + 1} had ${bulkError.writeErrors.length} validation/duplicate failures.`,
+          );
+
+          // Print out the details of the very first error in this chunk to diagnose it
+          const sampleError = bulkError.writeErrors[0];
+          console.error(
+            `       Sample Error Detail: [Index ${sampleError.index}] - ${sampleError.errmsg}`,
+          );
+        } else {
+          console.error(`    💥 Unexpected chunk failure:`, bulkError.message);
+        }
       }
     }
 
     console.log(
-      `⏳ Committing ${parsedProducts.length} items to database catalog execution...`,
+      "\n🎉 Database collection successfully populated with professional data models!",
     );
-    await Product.insertMany(parsedProducts);
-    console.log("🎉 Database collection successfully seeded!");
-
-    process.exit(0);
+    await mongoose.disconnect();
+    console.log("🔌 Disconnected cleanly from MongoDB.");
   } catch (error) {
     console.error(
-      "💥 Execution halted during execution lifecycle phase:",
+      "💥 Execution halted during pipeline ingestion phase:",
       error,
     );
     process.exit(1);

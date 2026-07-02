@@ -1,17 +1,19 @@
 import mongoose from "mongoose";
+import { productSchema } from "../schemas/product/product.schema.js";
 
-import { productSchema } from "#schemas";
-
-// Unique identifiers
+// Core Identity Unique Constraints
 productSchema.index({ "identity.gtin": 1 }, { unique: true });
 productSchema.index({ "identity.sku": 1 }, { unique: true });
 productSchema.index({ "identity.slug": 1 }, { unique: true });
 
-// Common search indexes
-productSchema.index({ "identity.brandId": 1 });
-productSchema.index({ "catalog.categoryId": 1 });
+// Multi-attribute relational filters
+productSchema.index({ "identity.brandId": 1, "catalog.categoryId": 1 });
 productSchema.index({ "catalog.status": 1 });
 
-const Product = mongoose.model("Product", productSchema, "products");
+// High-performance search filter index for active, non-deleted entries
+productSchema.index(
+  { "metadata.isActive": 1, "metadata.isDeleted": 1 },
+  { partialFilterExpression: { "metadata.isDeleted": false } },
+);
 
-export default Product;
+export const Product = mongoose.model("Product", productSchema, "products");

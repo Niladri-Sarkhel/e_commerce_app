@@ -17,7 +17,11 @@ export const memorySchema = new mongoose.Schema(
         default: false,
       },
 
-      type: String,
+      // Crucial Fix: Wrap the literal 'type' field so Mongoose handles it as a string attribute
+      type: {
+        type: String,
+        default: null,
+      },
 
       maxMb: Number,
 
