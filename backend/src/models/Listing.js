@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
-import { pricingSchema } from "../schemas/listing/pricing.js";
-import { inventorySchema } from "../schemas/listing/inventory.js";
-import { shippingSchema } from "../schemas/listing/shipping.js";
-import { statusSchema } from "../schemas/listing/status.js";
+import {
+  pricingSchema,
+  inventorySchema,
+  shippingSchema,
+  statusSchema,
+} from "#schemas";
 
 const listingSchema = new mongoose.Schema(
   {
@@ -43,5 +45,11 @@ const listingSchema = new mongoose.Schema(
 
 // Compound indexing to guarantee a single seller can't list the exact same product twice
 listingSchema.index({ sellerId: 1, productId: 1 }, { unique: true });
+
+listingSchema.index({
+  productId: 1,
+  "status.state": 1,
+  "pricing.sellingPrice": 1,
+});
 
 export const Listing = mongoose.model("Listing", listingSchema);

@@ -120,17 +120,36 @@ const seedDatabase = async () => {
         await Product.insertMany(chunk, { ordered: false });
         console.log(`    📦 Committed chunk ${Math.floor(i / batchSize) + 1}`);
       } catch (bulkError) {
-        // If some documents fail, insertMany throws an error containing an array of writeErrors
         if (bulkError.writeErrors && bulkError.writeErrors.length > 0) {
           console.warn(
             `    ⚠️ Chunk ${Math.floor(i / batchSize) + 1} had ${bulkError.writeErrors.length} validation/duplicate failures.`,
           );
 
-          // Print out the details of the very first error in this chunk to diagnose it
           const sampleError = bulkError.writeErrors[0];
-          console.error(
-            `       Sample Error Detail: [Index ${sampleError.index}] - ${sampleError.errmsg}`,
-          );
+
+          // Check if it's a structural schema validation error
+          if (sampleError.err && sampleError.err.errors) {
+            const firstFieldErr = Object.values(sampleError.err.errors)[0];
+            console.error(
+              `       Sample Error: [Index ${sampleError.index}] -> ${firstFieldErr.message}`,
+            );
+          }
+          // Check if it's a unique index constraint duplicate error (Code 11000)
+          else if (
+            sampleError.code === 11000 ||
+            (sampleError.err && sampleError.err.code === 11000)
+          ) {
+            const msg = sampleError.errmsg || sampleError.err.errmsg;
+            console.error(
+              `       Duplicate Key Error: [Index ${sampleError.index}] -> ${msg}`,
+            );
+          }
+          // Fallback if it's a native driver string error
+          else {
+            console.error(
+              `       Raw Error Detail: [Index ${sampleError.index}] -> ${sampleError.errmsg || JSON.stringify(sampleError)}`,
+            );
+          }
         } else {
           console.error(`    💥 Unexpected chunk failure:`, bulkError.message);
         }

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { productSchema } from "../schemas/product/product.schema.js";
+import { productSchema } from "#schemas";
 
 // Core Identity Unique Constraints
 productSchema.index({ "identity.gtin": 1 }, { unique: true });
